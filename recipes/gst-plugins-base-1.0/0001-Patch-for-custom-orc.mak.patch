@@ -1,0 +1,194 @@
+From 84b2091d6108127cc0a5c9f77dffc7ccd7a5ed88 Mon Sep 17 00:00:00 2001
+From: ijsf <ijsf@gmx.net>
+Date: Sat, 28 Feb 2015 14:34:05 +0100
+Subject: [PATCH] Patch for custom orc.mak
+
+---
+ common_patched/orc.mak         | 70 ++++++++++++++++++++++++++++++++++++++++++
+ configure.ac                   |  4 +++
+ gst-libs/gst/audio/Makefile.am |  2 +-
+ gst-libs/gst/video/Makefile.am |  2 +-
+ gst/adder/Makefile.am          |  2 +-
+ gst/audioconvert/Makefile.am   |  2 +-
+ gst/videotestsrc/Makefile.am   |  2 +-
+ gst/volume/Makefile.am         |  2 +-
+ 8 files changed, 80 insertions(+), 6 deletions(-)
+ create mode 100644 common_patched/orc.mak
+
+diff --git a/common_patched/orc.mak b/common_patched/orc.mak
+new file mode 100644
+index 0000000..af82da9
+--- /dev/null
++++ b/common_patched/orc.mak
+@@ -0,0 +1,70 @@
++#
++# This is a makefile.am fragment to build Orc code.
++#
++# Define ORC_SOURCE and then include this file, such as:
++#
++#  ORC_SOURCE=gstadderorc
++#  include $(top_srcdir)/common/orc.mak
++#
++# This fragment will create tmp-orc.c and gstadderorc.h from
++# gstadderorc.orc.
++#
++# When 'make dist' is run at the top level, or 'make orc-update'
++# in a directory including this fragment, the generated source 
++# files will be copied to $(ORC_SOURCE)-dist.[ch].  These files
++# should be checked in to git, since they are used if Orc is
++# disabled.
++# 
++# Note that this file defines BUILT_SOURCES, so any later usage
++# of BUILT_SOURCES in the Makefile.am that includes this file
++# must use '+='.
++#
++
++EXTRA_DIST = $(ORC_SOURCE).orc
++
++ORC_NODIST_SOURCES = tmp-orc.c asm-orc.s $(ORC_SOURCE).h
++BUILT_SOURCES = tmp-orc.c asm-orc.s $(ORC_SOURCE).h
++
++
++orc-update: tmp-orc.c $(ORC_SOURCE).h
++	$(top_srcdir)/common/gst-indent tmp-orc.c
++	cp tmp-orc.c $(srcdir)/$(ORC_SOURCE)-dist.c
++	cp $(ORC_SOURCE).h $(srcdir)/$(ORC_SOURCE)-dist.h
++
++orcc_v_gen = $(orcc_v_gen_$(V))
++orcc_v_gen_ = $(orcc_v_gen_$(AM_DEFAULT_VERBOSITY))
++orcc_v_gen_0 = @echo "  ORCC   $@";
++
++cp_v_gen = $(cp_v_gen_$(V))
++cp_v_gen_ = $(cp_v_gen_$(AM_DEFAULT_VERBOSITY))
++cp_v_gen_0 = @echo "  CP     $@";
++
++if HAVE_ORCC
++asm-orc.s: $(srcdir)/$(ORC_SOURCE).orc
++#	Empty
++
++tmp-orc.c: $(srcdir)/$(ORC_SOURCE).orc
++	$(orcc_v_gen)$(ORCC) $(ORCC_FLAGS) $(ORCC_FLAGS_TARGET) --include glib.h -o tmp-orc.c $(srcdir)/$(ORC_SOURCE).orc
++
++$(ORC_SOURCE).h: $(srcdir)/$(ORC_SOURCE).orc
++	$(orcc_v_gen)$(ORCC) $(ORCC_FLAGS) --header --include glib.h -o $(ORC_SOURCE).h $(srcdir)/$(ORC_SOURCE).orc
++else
++tmp-orc.c: $(srcdir)/$(ORC_SOURCE).orc $(srcdir)/$(ORC_SOURCE)-dist.c
++	$(cp_v_gen)cp $(srcdir)/$(ORC_SOURCE)-dist.c tmp-orc.c
++
++$(ORC_SOURCE).h: $(srcdir)/$(ORC_SOURCE).orc $(srcdir)/$(ORC_SOURCE)-dist.c
++	$(cp_v_gen)cp $(srcdir)/$(ORC_SOURCE)-dist.h $(ORC_SOURCE).h
++endif
++
++clean-local: clean-orc
++.PHONY: clean-orc
++clean-orc:
++	rm -f asm-orc.s tmp-orc.c $(ORC_SOURCE).h
++
++dist-hook: dist-hook-orc
++.PHONY: dist-hook-orc
++
++# we try and copy updated orc -dist files below, but don't fail if it
++# doesn't work as the srcdir might not be writable
++dist-hook-orc: tmp-orc.c $(ORC_SOURCE).h
++	$(top_srcdir)/common/gst-indent tmp-orc.c
+diff --git a/configure.ac b/configure.ac
+index 73ea40a..6dc8ec2 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -136,6 +136,7 @@ dnl *** checks for programs ***
+ dnl find a compiler
+ AC_PROG_CC
+ AC_PROG_CC_STDC
++AM_PROG_AS
+ 
+ dnl check if the compiler supports '-c' and '-o' options
+ AM_PROG_CC_C_O
+@@ -267,6 +268,9 @@ GST_PREFIX="`$PKG_CONFIG --variable=prefix gstreamer-$GST_API_VERSION`"
+ AC_SUBST(GLIB_PREFIX)
+ AC_SUBST(GST_PREFIX)
+ 
++dnl orcc target flags
++AC_SUBST(ORCC_FLAGS_TARGET)
++
+ dnl GTK is optional and only used in examples
+ HAVE_GTK=no
+ HAVE_GTK_X11=no
+diff --git a/gst-libs/gst/audio/Makefile.am b/gst-libs/gst/audio/Makefile.am
+index d8a7938..ec59514 100644
+--- a/gst-libs/gst/audio/Makefile.am
++++ b/gst-libs/gst/audio/Makefile.am
+@@ -1,6 +1,6 @@
+ # variables used for enum/marshal generation
+ ORC_SOURCE=gstaudiopack
+-include $(top_srcdir)/common/orc.mak
++include $(top_srcdir)/common_patched/orc.mak
+ 
+ glib_enum_headers= 		\
+ 	audio.h			\
+diff --git a/gst-libs/gst/video/Makefile.am b/gst-libs/gst/video/Makefile.am
+index 169d7bc..8810f3a 100644
+--- a/gst-libs/gst/video/Makefile.am
++++ b/gst-libs/gst/video/Makefile.am
+@@ -1,6 +1,6 @@
+ # variables used for enum generation
+ ORC_SOURCE=video-orc
+-include $(top_srcdir)/common/orc.mak
++include $(top_srcdir)/common_patched/orc.mak
+ 
+ glib_enum_headers = video.h video-format.h video-color.h video-info.h video-dither.h \
+ 			colorbalance.h navigation.h video-chroma.h video-tile.h video-converter.h \
+diff --git a/gst/adder/Makefile.am b/gst/adder/Makefile.am
+index c899cfc..2164b58 100644
+--- a/gst/adder/Makefile.am
++++ b/gst/adder/Makefile.am
+@@ -1,7 +1,7 @@
+ plugin_LTLIBRARIES = libgstadder.la
+ 
+ ORC_SOURCE=gstadderorc
+-include $(top_srcdir)/common/orc.mak
++include $(top_srcdir)/common_patched/orc.mak
+ 
+ 
+ libgstadder_la_SOURCES = gstadder.c
+diff --git a/gst/audioconvert/Makefile.am b/gst/audioconvert/Makefile.am
+index 66846fc..e05858a 100644
+--- a/gst/audioconvert/Makefile.am
++++ b/gst/audioconvert/Makefile.am
+@@ -1,7 +1,7 @@
+ plugin_LTLIBRARIES = libgstaudioconvert.la
+ 
+ ORC_SOURCE=gstaudioconvertorc
+-include $(top_srcdir)/common/orc.mak
++include $(top_srcdir)/common_patched/orc.mak
+ 
+ libgstaudioconvert_la_SOURCES = \
+ 	gstaudioconvert.c \
+diff --git a/gst/videotestsrc/Makefile.am b/gst/videotestsrc/Makefile.am
+index 52230f2..45c0550 100644
+--- a/gst/videotestsrc/Makefile.am
++++ b/gst/videotestsrc/Makefile.am
+@@ -1,7 +1,7 @@
+ plugin_LTLIBRARIES = libgstvideotestsrc.la
+ 
+ ORC_SOURCE=gstvideotestsrcorc
+-include $(top_srcdir)/common/orc.mak
++include $(top_srcdir)/common_patched/orc.mak
+ 
+ libgstvideotestsrc_la_SOURCES = \
+ 			gstvideotestsrc.c \
+diff --git a/gst/volume/Makefile.am b/gst/volume/Makefile.am
+index bb83001..de3b3f6 100644
+--- a/gst/volume/Makefile.am
++++ b/gst/volume/Makefile.am
+@@ -1,7 +1,7 @@
+ plugin_LTLIBRARIES = libgstvolume.la
+ 
+ ORC_SOURCE=gstvolumeorc
+-include $(top_srcdir)/common/orc.mak
++include $(top_srcdir)/common_patched/orc.mak
+ 
+ libgstvolume_la_SOURCES = gstvolume.c
+ nodist_libgstvolume_la_SOURCES = $(ORC_NODIST_SOURCES)
+-- 
+2.1.0
+

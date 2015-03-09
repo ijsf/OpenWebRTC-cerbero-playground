@@ -11,6 +11,8 @@ class Recipe(custom.GStreamerStatic):
     deps = ['glib', 'gstreamer-1.0', 'zlib', 'orc']
     use_system_libs = True
 
+    patches = ['gst-plugins-base-1.0/0001-Patch-for-custom-orc.mak.patch']
+
     files_plugins_core_devel = [
              'libgstapp',
              'libgstaudioconvert',
@@ -35,6 +37,21 @@ class Recipe(custom.GStreamerStatic):
         self.configure_options += ' --disable-cdparanoia'
         self.configure_options += ' --disable-x --disable-xvideo'
         self.configure_options += ' --disable-alsa'
+
+        if self.config.target_platform == Platform.IOS:
+            # Always armv7 or AArch64/arm64 (NEON)
+            # Does not support run-time code execution, so compile static implementation instead
+            if self.config.target_arch in [Architecture.ARMv7, Architecture.ARMv7S]:
+                self.append_env['ORCC_FLAGS_TARGET'] = "--target neon --static-implementation --outputasm asm-orc.s"
+            else:
+                # AArch64/arm64 not supported, fall back to backup compilation
+                self.append_env['ORCC_FLAGS_TARGET'] = "--target neon --implementation"
+        elif self.config.target_arch in [Architecture.X86, Architecture.X86_64]:
+            self.append_env['ORCC_FLAGS_TARGET'] = "--target sse --implementation"
+        elif self.config.target_arch in [Architecture.ARMv7, Architecture.ARMv7S]:
+            self.append_env['ORCC_FLAGS_TARGET'] = "--target neon --implementation"
+        else:
+            raise InvalidRecipeError(self, "Unsupported platform: " + self.config.target_platform + " " + self.config.target_arch)
 
         if self.config.variants.nodebug:
             self.append_env['CFLAGS'] += ' -DGST_LEVEL_MAX=GST_LEVEL_FIXME'

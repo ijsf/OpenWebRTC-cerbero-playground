@@ -11,6 +11,8 @@ class Recipe(recipe.Recipe):
     deps = ['glib', 'gstreamer-1.0', 'zlib', 'orc']
     use_system_libs = True
 
+    patches = ['gst-plugins-base-1.0/0001-Patch-for-custom-orc.mak.patch']
+
     files_libs = ['libgstallocators-1.0',
                  'libgstapp-1.0', 'libgstaudio-1.0',
                  'libgstfft-1.0', 'libgstpbutils-1.0', 'libgstriff-1.0', 'libgstrtp-1.0',
@@ -76,6 +78,21 @@ class Recipe(recipe.Recipe):
     def prepare(self):
         self.remotes['origin'] = ('%s/%s' % ('git://anongit.freedesktop.org/gstreamer', 'gst-plugins-base'))
         self.remotes['upstream'] = self.remotes['origin']
+
+        if self.config.target_platform == Platform.IOS:
+            # Always armv7 or AArch64/arm64 (NEON)
+            # Does not support run-time code execution, so compile static implementation instead
+            if self.config.target_arch in [Architecture.ARMv7, Architecture.ARMv7S]:
+                self.append_env['ORCC_FLAGS_TARGET'] = "--target neon --static-implementation --outputasm asm-orc.s"
+            else:
+                # AArch64/arm64 not supported, fall back to backup compilation
+                self.append_env['ORCC_FLAGS_TARGET'] = "--target neon --implementation"
+        elif self.config.target_arch in [Architecture.X86, Architecture.X86_64]:
+            self.append_env['ORCC_FLAGS_TARGET'] = "--target sse --implementation"
+        elif self.config.target_arch in [Architecture.ARMv7, Architecture.ARMv7S]:
+            self.append_env['ORCC_FLAGS_TARGET'] = "--target neon --implementation"
+        else:
+            raise InvalidRecipeError(self, "Unsupported platform: " + self.config.target_platform + " " + self.config.target_arch)
 
         self.append_env['CFLAGS'] = " -Wno-error "
         self.append_env['CXXFLAGS'] = " -Wno-error "
