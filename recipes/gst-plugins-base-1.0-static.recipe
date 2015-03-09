@@ -11,6 +11,8 @@ class Recipe(custom.GStreamerStatic):
     deps = ['glib', 'gstreamer-1.0', 'zlib', 'orc']
     use_system_libs = True
 
+    patches = ['gst-plugins-base-1.0/0001-Patch-for-custom-orc.mak.patch']
+
     files_plugins_core_devel = [
              'libgstapp',
              'libgstaudioconvert',
