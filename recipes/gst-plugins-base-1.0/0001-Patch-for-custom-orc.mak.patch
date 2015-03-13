@@ -67,7 +67,7 @@ index 0000000..c3f0766
 +#	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(GST_PLUGINS_BASE_CFLAGS) $(GST_BASE_CFLAGS)
 +
 +tmp-orc.c: $(srcdir)/$(ORC_SOURCE).orc
-+	$(orcc_v_gen)$(ORCC) $(ORCC_FLAGS) $(ORCC_FLAGS_TARGET) --static-implementation --include glib.h --outputasm asm-orc.s -o tmp-orc.c $(srcdir)/$(ORC_SOURCE).orc
++	$(orcc_v_gen)$(ORCC) $(ORCC_FLAGS) $(ORCC_FLAGS_TARGET) --include glib.h --outputasm asm-orc.s -o tmp-orc.c $(srcdir)/$(ORC_SOURCE).orc
 +
 +$(ORC_SOURCE).h: $(srcdir)/$(ORC_SOURCE).orc
 +	$(orcc_v_gen)$(ORCC) $(ORCC_FLAGS) $(ORCC_FLAGS_TARGET) --header --include glib.h -o $(ORC_SOURCE).h $(srcdir)/$(ORC_SOURCE).orc

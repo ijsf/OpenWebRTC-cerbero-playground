@@ -38,6 +38,17 @@ class Recipe(custom.GStreamerStatic):
         self.configure_options += ' --disable-x --disable-xvideo'
         self.configure_options += ' --disable-alsa'
 
+        if self.config.target_platform == Platform.IOS:
+            # Always armv7 or arm64 (NEON)
+            # Does not support run-time code execution, so compile static implementation instead
+            self.append_env['ORCC_FLAGS_TARGET'] = "--target neon --static-implementation"
+        elif self.config.target_arch in [Architecture.X86, Architecture.X86_64]:
+            self.append_env['ORCC_FLAGS_TARGET'] = "--target sse --implementation"
+        elif self.config.target_arch in [Architecture.ARMv7, Architecture.ARMv7S]:
+            self.append_env['ORCC_FLAGS_TARGET'] = "--target neon --implementation"
+        else:
+            raise InvalidRecipeError(self, "Unsupported platform: " + self.config.target_platform + " " + self.config.target_arch)
+
         if self.config.variants.nodebug:
             self.append_env['CFLAGS'] += ' -DGST_LEVEL_MAX=GST_LEVEL_FIXME'
 
