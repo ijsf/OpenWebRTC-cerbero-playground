@@ -9,7 +9,7 @@ class Recipe(custom.GStreamerStatic):
     url = 'http://nice.freedesktop.org/releases/libnice-%(version)s.tar.gz'
     licenses = [License.LGPLv2_1Plus, License.MPLv1_1]
     extra_configure_options = ' --without-gstreamer-0.10 \
-        --enable-compile-warnings=maximum'
+        --enable-compile-warnings=maximum --disable-assert'
     deps = ['glib', 'gtk-doc-lite', 'gstreamer-1.0']
     patches = ['libnice/libnice-add-win32-support.patch']
     autoreconf = True
