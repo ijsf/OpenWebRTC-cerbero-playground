@@ -8,7 +8,7 @@ class Recipe(recipe.Recipe):
     licenses = [License.LGPLv2_1Plus, License.MPLv1_1]
     configure_options = ' --enable-static --enable-shared --with-gstreamer \
             --without-gstreamer-0.10 --enable-compile-warnings=maximum \
-            --disable-gtk-doc'
+            --disable-gtk-doc --disable-assert'
     deps = ['glib', 'gtk-doc-lite', 'gstreamer-1.0']
     patches = [name + '/libnice-add-win32-support.patch']
     autoreconf = True
